@@ -1,0 +1,57 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - example.env
+    container_name: api
+    networks:
+      - my-network
+    depends_on:
+      psql:
+        condition: service_started 
+    ports:
+      - 5000:8000
+    restart: always
+    volumes:
+      - .:/usr/src/app/
+    command: bash -c "cd ./backend && gunicorn -w 4 --bind 0.0.0.0:8000 'app:create_app()' && celery -A make_celery worker --loglevel=info && celery -A make_celery beat --loglevel=info"
+
+  psql:
+    container_name: psql
+    image: postgres:14.8
+    environment:
+      POSTGRES_DB: "poster"
+      POSTGRES_USER: "root"
+      POSTGRES_PASSWORD: "root"
+    ports:
+      - 5432:5432
+    restart: always
+    networks:
+      - my-network
+    volumes:
+      - data-psql:/var/lib/postgresql/data
+  redis:
+    container_name: redis
+    image: redis:7.2
+    ports:
+      - 6379:6379
+    restart: always
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    env_file:
+      - example.env
+    depends_on:
+      - api
+    ports:
+      - 8080:4173
+    restart: always
+networks:
+  my-network:
+volumes:
+  data-psql:
+
